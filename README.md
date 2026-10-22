@@ -1,7 +1,7 @@
 # Flipwalker
 This is a Pokewalker running on the Flipper Zero. It is a port of [Stickwalker](https://github.com/lumirth/stickwalker), which runs lumirth's reconstruction of the real Pokewalker firmware, so the actual game is the same thing that runs on the original hardware(step counting, Watts, Poke Radar, dowsing, the sounds and the IR protocol for HeartGold/SoulSilver). I didn't touch the game code, I just swapped out the Stick S3 hardware parts for Flipper ones. The reason I made this is that I wanted a Pokewalker I could carry around without paying too much an original, and the Flipper was already in my pocket.
 
-With the add-on board below(or some hand wired parts) it connects to HeartGold/SoulSilver in both directions, I've sent a Pokemon out for a stroll and brought it back. Please note that this was built with some AI assistance: Cleaning up my code and helping with the documentation.
+With the add-on board below(or some hand wired parts) it connects to HeartGold/SoulSilver in both directions, I've sent a Pokemon out for a stroll and brought it back.
 
 # Features
 - Runs the real Pokewalker game logic, not a remake
@@ -12,7 +12,7 @@ With the add-on board below(or some hand wired parts) it connects to HeartGold/S
 - Open source, so do whatever you want with it
 
 # Disclaimer
-I am not a professional embedded developer, this is a hobby project and there are probably rough edges. You will need to plug parts into the GPIO header to get IR and step counting, so you need some basic soldering and a general idea of what you are doing. If you wire something wrong and let the smoke out of your Flipper, that is on you. If you see something you'd do better, feel free to fork the repo.
+I am not a professional embedded developer, this is a hobby project and there are probably rough edges. Please note that this was built with some AI assistance: Cleaning up my code and helping with the documentation. You will need to plug parts into the GPIO header to get IR and step counting, so you need some basic soldering and a general idea of what you are doing. If you wire something wrong and let the smoke out of your Flipper, that is on you. If you see something you'd do better, feel free to fork the repo.
 
 # Hardware
 The Flipper doesn't have a motion sensor, and its built in IR only does 38kHz remote control stuff while the Pokewalker uses IrDA SIR. So both go on the GPIO header. The good news is the STM32's USART1 has an IrDA encoder/decoder built in, so an IrDA transceiver wires straight to it.
