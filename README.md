@@ -41,8 +41,6 @@ The easy way is [FlippIR](https://github.com/Jackv-makes/FlippIR-hardware), a li
 
 Most breakouts already have their own I2C pull-ups.
 
-**Without a transceiver:** an IR LED on pin 13(through 100 ohm to GND) can transmit, but a bare BPV10NF photodiode on pin 14 probably won't receive. Stickwalker gets away with it by timing how fast the photodiode discharges the pin with a dedicated sampler, but here pin 14 goes straight into the hardware IrDA decoder through the ~40k pull-up and a bare diode can't fight that at normal distances. You would need a transistor or comparator stage in between.
-
 # Build and Install
 ```
 pip3 install --user ufbt
