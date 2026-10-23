@@ -3,6 +3,15 @@ This is a Pokewalker running on the Flipper Zero. It is a port of [Stickwalker](
 
 With the add-on board below(or some hand wired parts) it connects to HeartGold/SoulSilver in both directions, I've sent a Pokemon out for a stroll and brought it back.
 
+Here it is running Dim Cave with a Ditto. These are straight off the Flipper's screen through qFlipper.
+
+| | | |
+|:-:|:-:|:-:|
+| ![Waiting for the DS](images/connecting.png) | ![Mimic arriving](images/arrived.png) | ![Home screen](images/home.png) |
+| Waiting on the DS. The little walker is a Flipper, I had to | A Pokemon coming over from the game | Home screen, that block on the left is the Dim Cave scene |
+| ![Walker menu](images/menu.png) | ![Trainer card](images/trainer-card.png) | ![Flipwalker menu](images/flipwalker-menu.png) |
+| The walker's own menu, nothing changed here | Trainer card, with the route and the real clock | The Back menu, the only part of the UI that is mine |
+
 # Features
 - Runs the real Pokewalker game logic, not a remake
 - Loads a 64KB EEPROM dump from a real Pokewalker directly as a save
