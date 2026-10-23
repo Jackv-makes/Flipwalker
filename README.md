@@ -59,7 +59,7 @@ ufbt update --hw-target f7 --url https://update.flipperzero.one/builds/firmware/
 # Playing
 - Left/OK/Right are the walker's three buttons
 - Back opens the Flipwalker menu(backlight auto/off, shading mode, which accelerometer was found with a rescan, whether an IR transceiver was found with a rescan, and the link state while connecting)
-- Hold Back to save and exit
+- Hold Back for about a second to save and exit(a quick press is the menu)
 - When the walker's screen goes to sleep the Flipper backlight does too, any button wakes it
 - During an IR connection the Flipper's LED shows how the link is doing: green while packets are getting through cleanly, red when bytes are coming in broken or the DS has gone quiet(move closer or line the windows up). IrDA has no signal strength as such, so this is really a "did the last second decode cleanly" light
 

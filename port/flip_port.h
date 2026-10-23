@@ -10,6 +10,11 @@
 #define FLIP_SCREEN_H  64
 #define FLIP_XBM_BYTES (FLIP_SCREEN_W / 8 * FLIP_SCREEN_H)
 
+/* Pixel tags, carried in bits 2-3 above the shade: what kind of picture a
+ * pixel came from, so the renderer can treat sprites and scenes differently. */
+#define FLIP_TAG_SPRITE 1u
+#define FLIP_TAG_SCENE  2u
+
 /* Render 0..3 shade pixels into a 96x64 one-bit XBM (LSB first). */
 typedef enum {
     FlipDitherSolid, /* light gray -> white, dark gray -> black (default) */

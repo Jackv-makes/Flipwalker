@@ -49,6 +49,11 @@ typedef struct {
     const char* volatile fatal;
     bool running;
     uint8_t swallowed_keys;
+    /* Back held: exits after EXIT_HOLD_REPEATS repeats (~1 s). A long press
+     * released before that counts as an ordinary Back, since the Flipper
+     * calls anything over 300 ms "long" and that is easy to hit by accident. */
+    uint8_t back_hold;
+    volatile bool frame_dirty; /* the walker drew; render before the next blit */
     /* Gray mode draws straight to the LCD so the two patterns alternate
      * strictly, frame for frame, instead of through the GUI thread. */
     Canvas* direct;
@@ -62,10 +67,16 @@ typedef struct {
     volatile bool phase_valid;
 } Flipwalker;
 
-static void draw_game(Canvas* canvas, Flipwalker* app) {
+/* Rendering happens in the app thread (render_frame); the GUI's draw
+ * callback only copies the result, so it never holds the view port mutex
+ * for long. */
+static void render_frame(Flipwalker* app) {
     flip_display_copy(app->pixels);
-    if(app->dither == FlipDitherGray) app->gray_phase = !app->gray_phase;
     flip_render_xbm(app->pixels, app->xbm, app->dither, app->gray_phase);
+    app->frame_dirty = false;
+}
+
+static void draw_game(Canvas* canvas, Flipwalker* app) {
     canvas_draw_xbm(canvas, 16, 0, FLIP_SCREEN_W, FLIP_SCREEN_H, app->xbm);
     /* Bezel lines either side of the walker's panel. */
     canvas_draw_line(canvas, 14, 0, 14, 63);
@@ -127,9 +138,13 @@ static void draw_callback(Canvas* canvas, void* context) {
     }
 }
 
-static void queue_input(Flipwalker* app, const InputEvent* event) {
+static void queue_input(Flipwalker* app, const InputEvent* event, const char* source) {
     app->last_key_tick = furi_get_tick();
-    furi_message_queue_put(app->input_queue, event, 0);
+    if(furi_message_queue_put(app->input_queue, event, 0) != FuriStatusOk)
+        FURI_LOG_W("flipwalker", "input queue full, dropped %s key %d type %d", source, event->key, event->type);
+    else
+        FURI_LOG_D("flipwalker", "in %s key %d type %d direct=%d menu=%d", source, event->key, event->type,
+                   app->direct != NULL, app->menu_open);
 }
 
 /* View port input. The GUI keeps routing keys here during direct draw once
@@ -139,8 +154,11 @@ static void queue_input(Flipwalker* app, const InputEvent* event) {
  * press would open the menu and close it again. */
 static void input_callback(InputEvent* event, void* context) {
     Flipwalker* app = context;
-    if(app->direct) return;
-    queue_input(app, event);
+    if(app->direct) {
+        FURI_LOG_D("flipwalker", "vp key %d type %d ignored (direct)", event->key, event->type);
+        return;
+    }
+    queue_input(app, event, "vp");
 }
 
 /* IR status LED: green while packets flow cleanly, red when the link is
@@ -159,15 +177,13 @@ static void ir_led_service(Flipwalker* app) {
 static void frame_callback(void* context) {
     Flipwalker* app = context;
     app->phase_valid = false;
-    /* The GUI cannot redraw while we hold the display; asking it to only
-     * logs a lockup warning. */
-    if(!app->direct) view_port_update(app->view_port);
+    app->frame_dirty = true; /* the main loop renders and then asks for a redraw */
 }
 
 /* While the canvas is ours the GUI delivers no view port input, so take the
  * raw events instead. */
 static void direct_input(const void* value, void* context) {
-    queue_input(context, value);
+    queue_input(context, value, "raw");
 }
 
 static void direct_frame(Flipwalker* app) {
@@ -240,7 +256,9 @@ static void menu_input(Flipwalker* app, const InputEvent* event) {
         app->menu_row = (app->menu_row + 1) % MenuCount;
         break;
     case InputKeyBack:
+        FURI_LOG_D("flipwalker", "menu close");
         app->menu_open = false;
+        app->frame_dirty = true;
         flip_runtime_wake();
         if(app->dither == FlipDitherGray && app->screen_on) return; /* direct draw takes over */
         break;
@@ -265,10 +283,25 @@ static void menu_input(Flipwalker* app, const InputEvent* event) {
     view_port_update(app->view_port);
 }
 
+#define EXIT_HOLD_REPEATS 5
 static void handle_input(Flipwalker* app, const InputEvent* event) {
-    if(event->key == InputKeyBack && event->type == InputTypeLong) {
-        app->running = false;
-        return;
+    if(event->key == InputKeyBack) {
+        if(event->type == InputTypeLong) {
+            app->back_hold = 1;
+            return;
+        }
+        if(event->type == InputTypeRepeat && app->back_hold) {
+            if(++app->back_hold > EXIT_HOLD_REPEATS) app->running = false;
+            return;
+        }
+        if(event->type == InputTypeRelease && app->back_hold) {
+            /* Let go before the exit threshold: same as a short press. */
+            app->back_hold = 0;
+            InputEvent as_short = *event;
+            as_short.type = InputTypeShort;
+            handle_input(app, &as_short);
+            return;
+        }
     }
     if(app->fatal) {
         if(event->key == InputKeyBack && event->type == InputTypeShort) app->running = false;
@@ -279,6 +312,7 @@ static void handle_input(Flipwalker* app, const InputEvent* event) {
         return;
     }
     if(event->key == InputKeyBack && event->type == InputTypeShort) {
+        FURI_LOG_D("flipwalker", "menu open");
         app->menu_open = true;
         app->menu_row = 0;
         flip_input_transition(BUTTON_LEFT | BUTTON_CENTER | BUTTON_RIGHT, false);
@@ -407,6 +441,10 @@ int32_t flipwalker_app(void* p) {
             ir_led_service(app);
             if(flip_ir_link() != FlipIrLinkNone && wait_ms > 100) wait_ms = 100;
             if(app->backlight_off && wait_ms > 250) wait_ms = 250;
+            if(app->frame_dirty && !app->menu_open) {
+                render_frame(app);
+                if(!app->direct) view_port_update(app->view_port);
+            }
             const bool want_direct = app->dither == FlipDitherGray && app->screen_on && !app->menu_open;
             if(want_direct && !app->direct) direct_enter(app);
             if(!want_direct && app->direct) direct_leave(app);
